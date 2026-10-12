@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "name": "ProductionProjectName",
+  "version": "1-1-1-2",
+  "project_id": "8aca91c8-cd03-4efe-b0c3-9fb04e5fda45",
+  "branch": "main",
+  "build": [["python", "-m", "compileall", "-q", "."]],
+  "activate": [["sh", "scripts/activate.sh"]],
+  "health": [["python3", "scripts/health.py"]],
+  "quiesce": [],
+  "resume": [],
+  "parameters": {"APP_ENV": "production"},
+  "env_files": [".env"],
+  "data_paths": ["data"],
+  "exclude": ["tests", "build-desc"],
+  "timeout": 300,
+  "backup_keep": 5,
+  "targets": {
+    "prod": {
+      "host": "192.0.2.10",
+      "port": 22,
+      "user": "deploy",
+      "root": "/opt/production-example",
+      "key_file": "secrets/ssh/prod/id_ed25519",
+      "known_hosts": "secrets/ssh/known_hosts"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "scope": "GitHub publication only; leave private source workspace files intact",
+  "public_prompt_exception": "GITHUB_SORTING_PROMPT.md",
+  "blocked_directories": [
+    "build-desc", "private", "secrets", "credentials", "github",
+    ".git", ".prox", ".venv", "__pycache__", "build", "dist",
+    "build-artifacts", ".ssh", ".aws", ".azure", ".config",
+    ".codex", ".claude", ".cursor", ".copilot", ".continue",
+    ".gemini", ".kiro", ".windsurf", ".idea", ".vscode",
+    "prompts", "instructions", "ai-notes"
+  ],
+  "blocked_filename_patterns": [
+    "agents.md", "ai.md", "claude.md", "gemini.md", "skill.md", ".cursorrules",
+    ".windsurfrules", ".aider*", "*instructions*", "*prompt*",
+    "*chat-history*", "*conversation*", "*transcript*", "*memory*.md",
+    "*audit-evidence*", "*audit-log*", "*password*", "*credential*",
+    "*secret*", ".env", ".env.*", "id_rsa*", "id_ed25519*",
+    "*.pem", "*.key", "*.p12", "*.pfx", "*.jks", "*.keystore",
+    "*.proxproj", "*.gitbundle", "*.bundle", "*.db", "*.sqlite",
+    "*.sqlite3", "*.log", "*.bak", "*.zip", "*.tar", "*.gz",
+    "*.7z", "*.pyc", "*.pyo"
+  ],
+  "review_rules": [
+    "Match paths case-insensitively and reject symbolic links or junctions.",
+    "The named prompt exception bypasses only its filename block, never credential or privacy checks.",
+    "Scan allowed source and documentation contents, not only filenames.",
+    "Reject real passwords, tokens, keys, credential URLs, private hostnames, personal details and local user paths.",
+    "Reject AI role instructions, hidden prompt text, conversation exports and private engineering notes even under ordinary filenames.",
+    "Product documentation describing configuration or commands is allowed after review; instructions addressed to an AI agent are private.",
+    "Test credentials must be demonstrably synthetic and reviewed individually; never exempt an entire test directory.",
+    "Do not copy Git history, release databases, encrypted archives or environment files.",
+    "A clean automated scan is not proof that arbitrary private information is absent; review each candidate file.",
+    "Unknown or ambiguous files stay local until the owner explicitly approves them."
+  ]
+}

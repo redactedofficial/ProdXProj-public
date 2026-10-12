@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prodxproj"
+version = "0.1.2"
+description = "Client-side project compiler, portable production packages, and SSH release runner"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+requires-python = ">=3.10"
+dependencies = ["cryptography==50.0.2"]
+
+[project.urls]
+Repository = "https://github.com/redactedofficial/ProdXProj-public"
+Issues = "https://github.com/redactedofficial/ProdXProj-public/issues"
+
+[project.scripts]
+prodx = "proxrunner.cli:main"
+prox = "proxrunner.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["proxrunner*"]

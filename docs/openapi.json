@@ -1,0 +1,448 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ProdXProj monitor",
+    "version": "0.1.2"
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Report": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "node_id",
+          "health"
+        ],
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "hostname": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "release": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "version": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "project": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "last_backup": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "health": {
+            "enum": [
+              "healthy",
+              "unhealthy",
+              "unknown"
+            ]
+          },
+          "uptime": {
+            "type": "number",
+            "minimum": 0
+          },
+          "disk_free": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "InfrastructureRequest": {
+        "type": "object",
+        "required": [
+          "provider",
+          "action"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "provider": {
+            "enum": [
+              "proxmox",
+              "docker"
+            ]
+          },
+          "action": {
+            "enum": [
+              "nodes",
+              "resources",
+              "status",
+              "start",
+              "shutdown",
+              "stop",
+              "reboot",
+              "backup",
+              "create-lxc",
+              "restore-lxc",
+              "install-docker",
+              "containers",
+              "info",
+              "restart"
+            ]
+          },
+          "node": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "storage": {
+            "type": "string"
+          },
+          "archive": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "ostemplate": {
+            "type": "string"
+          },
+          "bridge": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "gateway": {
+            "type": "string"
+          },
+          "ssh_public_key": {
+            "type": "string"
+          },
+          "container": {
+            "type": "string"
+          },
+          "vmid": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "disk_gb": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "cores": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "memory_mb": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "docker": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RecoveryPlan": {
+        "type": "object",
+        "required": [
+          "provider",
+          "action",
+          "node",
+          "vmid"
+        ],
+        "properties": {
+          "provider": {
+            "const": "proxmox"
+          },
+          "action": {
+            "const": "destroy"
+          },
+          "node": {
+            "type": "string"
+          },
+          "vmid": {
+            "type": "integer",
+            "minimum": 100
+          },
+          "kind": {
+            "enum": [
+              "lxc",
+              "qemu"
+            ]
+          },
+          "storage": {
+            "type": "string"
+          }
+        }
+      },
+      "PlanConfirmation": {
+        "type": "object",
+        "required": [
+          "confirm"
+        ],
+        "properties": {
+          "confirm": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/v1/nodes": {
+      "get": {
+        "summary": "View production inventory (viewer/admin)",
+        "responses": {
+          "200": {
+            "description": "JSON result"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "400": {
+            "description": "Invalid request"
+          }
+        }
+      }
+    },
+    "/v1/report": {
+      "post": {
+        "summary": "Report a node heartbeat (node token)",
+        "responses": {
+          "200": {
+            "description": "JSON result"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "400": {
+            "description": "Invalid request"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Report"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Prox-Node",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/manage": {
+      "post": {
+        "summary": "Manage Proxmox/Docker (admin)",
+        "responses": {
+          "200": {
+            "description": "JSON result"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "400": {
+            "description": "Invalid request"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InfrastructureRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/plans": {
+      "post": {
+        "summary": "Prepare destructive recovery plan (admin)",
+        "responses": {
+          "200": {
+            "description": "JSON result"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "400": {
+            "description": "Invalid request"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryPlan"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/plans/{id}/execute": {
+      "post": {
+        "summary": "Execute reviewed recovery plan (admin)",
+        "responses": {
+          "200": {
+            "description": "JSON result"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "400": {
+            "description": "Invalid request"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanConfirmation"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/events": {
+      "get": {
+        "summary": "Authenticated read",
+        "responses": {
+          "200": {
+            "description": "JSON metadata or encrypted artifact"
+          }
+        }
+      }
+    },
+    "/v1/releases": {
+      "get": {
+        "summary": "Authenticated read",
+        "responses": {
+          "200": {
+            "description": "JSON metadata or encrypted artifact"
+          }
+        }
+      },
+      "post": {
+        "summary": "Publish redacted topology summaries (admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Published"
+          }
+        }
+      }
+    },
+    "/v1/packages/{id}": {
+      "get": {
+        "summary": "Authenticated read",
+        "responses": {
+          "200": {
+            "description": "JSON metadata or encrypted artifact"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Store encrypted package (admin)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored"
+          },
+          "409": {
+            "description": "Already exists"
+          }
+        }
+      }
+    }
+  }
+}

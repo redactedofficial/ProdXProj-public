@@ -1,0 +1,17 @@
+{
+  "provider": "proxmox",
+  "action": "create-lxc",
+  "node": "pve01",
+  "vmid": 201,
+  "hostname": "production-app01",
+  "ostemplate": "local:vztmpl/REPLACE_WITH_INSTALLED_TEMPLATE.tar.zst",
+  "storage": "local-lvm",
+  "bridge": "vmbr0",
+  "ip": "192.0.2.20/24",
+  "gateway": "192.0.2.1",
+  "cores": 2,
+  "memory_mb": 2048,
+  "disk_gb": 16,
+  "ssh_public_key": "ssh-ed25519 REPLACE_WITH_YOUR_PUBLIC_KEY",
+  "docker": false
+}
