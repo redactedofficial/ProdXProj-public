@@ -87,6 +87,11 @@ def compose_command(cfg, root, override=True):
 def apply(cfg, root):
     root = Path(root).resolve()
     svc = cfg["service"]
+    if svc["type"] == "systemd" and svc.get("scope", "user") == "system":
+        import pwd
+        uid = pwd.getpwnam(svc["user"]).pw_uid
+        if uid != root.stat().st_uid or uid != os.geteuid():
+            raise ValueError("System service user must own the protected deployment root and match the SSH account")
     folder = root / "service"
     folder.mkdir(mode=0o700, exist_ok=True)
     environment(cfg, root)

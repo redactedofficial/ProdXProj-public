@@ -32,3 +32,7 @@ These live integrations require separately configured test infrastructure. This 
 Run `python scripts/check_github_publication.py .` before preparing a commit or distribution. The checker reports blocked paths and privacy-pattern findings without matched values. Review the complete proposed file list and contents as well; automated patterns cannot identify every kind of private information. Check outgoing Git history separately.
 
 Encrypted package tests generate temporary passphrases at runtime. Other test credentials and example deployment addresses are synthetic fixtures, not live access details.
+
+## Version 0.2.1 remediation checks
+
+Legacy fingerprint export/storage migration, journaled service recovery and editor operation tracking have maintained regression tests. Live Linux interruption/reboot and production provider checks remain separate requirements. The extension build uses a pinned vsce dependency and npm integrity lock. Historical releases retain their original contents.

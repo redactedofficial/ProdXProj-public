@@ -1,0 +1,15 @@
+# ProdXProj for VS Code
+
+Open a folder containing `proxproject.json`, then run **ProdXProj: Dashboard** from the command palette. The Explorer has a ProdXProj section with variables, shipping destinations, checks and release history.
+
+The dashboard previews selected environment files, SSH identities, credentials and user data; shows generated scripts/systemd templates, startup settings, pipeline steps and release parent links; and can run optional local tests, Docker replicas and selected-target remote setup/service operations. A preview does not execute shipping commands. This first extension does not provide package deployment, a graphical monitor client or Proxmox administration; those remain CLI/API operations.
+
+Python 3.10+ with the dependencies in `requirements.lock` is required. Install dependencies in a dedicated virtual environment, then use **ProdXProj: Select Python Interpreter** to select its executable. The extension bundles its reviewed Python backend and invokes it in isolated mode; it does not import backend code from the open project. No dependencies are installed automatically.
+
+Variable values are masked until **Reveal variable values** is clicked. Do not share that screen while revealing secrets. Project configuration is edited in the native editor. Live Python/JSON/shell diagnostics inspect unsaved edits without running scripts; other languages show static effect indicators if a syntax checker is unavailable. **ProdXProj: Run Current Script** explicitly executes the saved script; output is suppressed to avoid credential disclosure.
+
+Workspace trust is required. Remote setup/start/stop and Docker actions execute when clicked and can change the selected environment. SSH host keys must already be trusted and the configured identity must already have access. Local Docker volumes persist after Stop. Cancellation is not offered for infrastructure operations because stopping a client process does not safely cancel a remote change. After ten minutes the UI reports that work is still running and keeps waiting; it does not kill the bridge or unlock conflicting actions. Operation IDs, times and states persist under `.prox/editor-operations/`. An interrupted or failed operation leaves an unknown-state lock, including across editor restarts. Inspect its actual Docker/server state before using **Acknowledge inspected interrupted operation**. Acknowledgement requires a stopped bridge and does not cancel remote work or prove completion.
+
+Install the built package using **Extensions: Install from VSIX…**. After installation, `prodx --project <folder> --gui` opens VS Code and requests this dashboard. The extension is a local preview release; no marketplace publishing occurs.
+
+Build from the source workspace: `python scripts/build_vscode_extension.py`. Test Node bridge safeguards: `node --test vscode-extension/test/core.test.js`. The backend bundle is regenerated during the build. Build tooling uses `@vscode/vsce` 4.0.0 with a committed npm lock containing package integrity hashes; dependency lifecycle scripts are disabled. Existing versioned VSIX files are not overwritten.

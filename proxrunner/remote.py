@@ -20,6 +20,15 @@ from pathlib import Path, PurePosixPath
 LIMIT = 64 * 1024**3
 
 
+def sync_directory(path):
+    if os.name != "nt":
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+
 def safe(root, name):
     p = PurePosixPath(name)
     if not name or p.is_absolute() or "\\" in name or ":" in name or any(x in ("", ".", "..") for x in name.split("/")):
@@ -38,6 +47,7 @@ def write_json(path, data):
         out.flush()
         os.fsync(out.fileno())
     os.replace(temporary, path)
+    sync_directory(path.parent)
 
 
 def hooks(cfg, stage, root, phase):
@@ -163,27 +173,74 @@ def restore_transition(root):
         return
     value = json.loads(journal.read_text())
     current = root / 'current'
+    existing = (root / os.readlink(current)).resolve() if current.is_symlink() else None
     target = value.get('target')
     if target:
         target = Path(target).resolve()
         if not target.is_relative_to((root / 'releases').resolve()):
             raise ValueError('Unsafe transition recovery target')
-        existing = (root / os.readlink(current)).resolve() if current.is_symlink() else None
-        if existing != target:
-            temporary = root / ('current-restore-' + uuid.uuid4().hex)
-            try:
-                temporary.symlink_to(target, target_is_directory=True)
-                os.replace(temporary, current)
-            finally:
-                temporary.unlink(missing_ok=True)
-    else:
-        current.unlink(missing_ok=True)
-    previous = value.get('previous')
-    if previous is None:
-        (root / 'active.json').unlink(missing_ok=True)
-    elif state(root) != previous:
-        write_json(root / 'active.json', previous)
-    journal.unlink()
+    reconcile = value.get('reconcile', value.get('phase') != 'prepared' or existing != target)
+    value['reconcile'] = reconcile
+    try:
+        # Old journals have no incoming release record. Capture it before changing
+        # the pointer; a missing helper/configuration must retain the journal.
+        if reconcile and not value.get('incoming') and existing and existing != target:
+            if not existing.is_relative_to((root / 'releases').resolve()):
+                raise ValueError('Unsafe current recovery target')
+            incoming = json.loads((existing / '.proxrelease.json').read_text())
+            value['incoming'] = {'release': existing.name, 'config': incoming['config']}
+        value['phase'] = 'recovery-required'
+        write_json(journal, value)
+        if reconcile and value.get('recovery_step') not in ('incoming-stopped', 'previous-runtime'):
+            incoming = value.get('incoming')
+            if incoming and incoming['config'].get('service'):
+                incoming_path = safe(root / 'releases', incoming['release'])
+                # Before recovery_step advances, the new pointer must still be
+                # present so its helper reads the correct service configuration.
+                if existing != incoming_path:
+                    raise ValueError('Incoming service pointer needs manual recovery')
+                managed(incoming['config'], root, 'stop')
+                managed(incoming['config'], root, 'disable')
+            value['recovery_step'] = 'incoming-stopped'
+            write_json(journal, value)
+        if target:
+            if existing != target:
+                temporary = root / ('current-restore-' + uuid.uuid4().hex)
+                try:
+                    temporary.symlink_to(target, target_is_directory=True)
+                    os.replace(temporary, current)
+                    sync_directory(root)
+                finally:
+                    temporary.unlink(missing_ok=True)
+        else:
+            current.unlink(missing_ok=True)
+            sync_directory(root)
+        previous = value.get('previous')
+        if previous is None:
+            (root / 'active.json').unlink(missing_ok=True)
+        elif state(root) != previous:
+            write_json(root / 'active.json', previous)
+        value['recovery_step'] = 'previous-runtime'
+        write_json(journal, value)
+        if previous:
+            old = safe(root / 'releases', previous['release'])
+            if target != old:
+                raise ValueError('Previous metadata and pointer disagree')
+            old_cfg = json.loads((old / '.proxrelease.json').read_text())['config']
+            if reconcile:
+                managed(old_cfg, root, 'apply')
+                hooks(old_cfg, old, root, 'activate')
+            if old_cfg.get('resume'):
+                hooks(old_cfg, old, root, 'resume')
+            if reconcile:
+                hooks(old_cfg, old, root, 'health')
+        journal.unlink()
+        sync_directory(root)
+    except Exception:
+        # No exception text or credentials enter the recovery status.
+        value['phase'] = 'recovery-required'
+        write_json(journal, value)
+        raise ValueError('Service recovery incomplete; transition journal retained') from None
 
 
 def switch(root, release, manifest):
@@ -195,36 +252,35 @@ def switch(root, release, manifest):
     if current.exists() and not current.is_symlink():
         raise ValueError('Existing current path must be a runner-managed symlink')
     old_target = str((root / os.readlink(current)).resolve()) if current.is_symlink() else None
-    write_json(root / '.transition.json', {'previous': previous, 'target': old_target})
+    journal = root / '.transition.json'
+    transition = {'schema': 2, 'phase': 'prepared', 'previous': previous, 'target': old_target,
+                  'incoming': {'release': release, 'config': cfg}}
+    write_json(journal, transition)
     temporary_link = root / ('current-' + uuid.uuid4().hex)
-    activation_started = False
     try:
         temporary_link.symlink_to(path, target_is_directory=True)
         os.replace(temporary_link, current)
+        sync_directory(root)
         write_json(root / 'active.json', {'release': release, 'version': manifest['version']})
-        activation_started = True
+        transition['phase'] = 'activation-starting'
+        write_json(journal, transition)
         managed(cfg, root, 'apply')
         hooks(cfg, path, root, 'activate')
+        transition['phase'] = 'activated'
+        write_json(journal, transition)
         if cfg.get('resume'):
             hooks(cfg, path, root, 'resume')
+        transition['phase'] = 'resumed'
+        write_json(journal, transition)
         hooks(cfg, path, root, 'health')
+        transition['phase'] = 'healthy'
+        write_json(journal, transition)
     except Exception:
-        if activation_started and cfg.get('service'):
-            try:
-                managed(cfg, root, 'stop')
-                managed(cfg, root, 'disable')
-            except Exception:
-                pass
         restore_transition(root)
-        if activation_started and previous:
-            old = safe(root / 'releases', previous['release'])
-            old_manifest = json.loads((old / '.proxrelease.json').read_text())
-            managed(old_manifest['config'], root, 'apply')
-            hooks(old_manifest['config'], old, root, 'activate')
-            hooks(old_manifest['config'], old, root, 'health')
         raise
     else:
-        (root / '.transition.json').unlink(missing_ok=True)
+        journal.unlink(missing_ok=True)
+        sync_directory(root)
     finally:
         temporary_link.unlink(missing_ok=True)
 
@@ -398,7 +454,7 @@ def execute(request, payload=None):
             activated = True
             return {"active": state(root), "backup": snapshot, "health_verified": bool(manifest["config"].get("health") or manifest["config"].get("service"))}
         finally:
-            if old_path and not activated:
+            if old_path and not activated and not (root / '.transition.json').exists():
                 hooks(old_cfg, old_path, root, "resume")
 
 

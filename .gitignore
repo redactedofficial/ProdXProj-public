@@ -85,6 +85,9 @@ id_ed25519*
 .vscode/
 .pytest_cache/
 .coverage
+node_modules/
+vscode-extension/backend/
+*.vsix
 
 # The only approved public prompt: generic workflow, no workspace data.
 !/GITHUB_SORTING_PROMPT.md

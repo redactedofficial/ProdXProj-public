@@ -32,4 +32,10 @@ Administrative operations are exposed only for configured providers. The initial
 
 ## Dependency notices
 
+Release fingerprint schema 3 excludes production and local-emulation parameters from public configuration hashes. Older aggregate/emulation hashes are discarded when imported, read from local/monitor databases or exported because schema 2 had incompatible meanings. A trusted configuration can regenerate safe fingerprints. This cannot retract metadata already shared elsewhere; rotate credentials if an older exposed hash could reveal them.
+
+Pending deployment journals retain activation/recovery phases until incoming services are stopped and the previous service, activation/resume and health hooks succeed. Failed reconciliation retains the journal and blocks subsequent worker actions. Hooks must tolerate retries after interruption; arbitrary external side effects remain outside automatic rollback. System-scoped service users must match the deployment owner/SSH account because release files are protected; provisioning a different service identity is not silently enabled by relaxing permissions.
+
+The editor tracks long-running operations instead of terminating the immediate bridge at a fixed deadline. Failed/interrupted operations retain a workspace-local lock until their actual effects are inspected and explicitly acknowledged. That acknowledgement does not cancel remote work. These locks coordinate editor operations; other clients and external tools can still affect the same infrastructure.
+
 Cryptography is supplied by the Python Cryptographic Authority under Apache-2.0 OR BSD-3-Clause. The installed CFFI dependency uses MIT-0, and pycparser uses BSD-3-Clause. Existing project assets/licenses remain part of packages; ProdXProj does not assign a new license to third-party project content. See [Cryptography's authenticated-encryption documentation](https://cryptography.io/en/latest/hazmat/primitives/aead/) for the underlying library and tag semantics.

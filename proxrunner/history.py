@@ -32,7 +32,13 @@ def parent(root, project, branch):
 def get(root, release):
     with connect(root) as db:
         row = db.execute("SELECT manifest FROM releases WHERE id=?", (release,)).fetchone()
-        return json.loads(row[0]) if row else None
+        if not row:
+            return None
+        original = json.loads(row[0])
+        value = sanitized_fingerprints(original)
+        if value != original:
+            db.execute("UPDATE releases SET manifest=? WHERE id=?", (json.dumps(value), release))
+        return value
 
 
 def changes(previous, files):
@@ -46,8 +52,13 @@ def record(root, manifest):
     # and environment file CONTENTS live inside the encrypted artifact.
     value = {k: v for k, v in manifest.items() if k not in ("config", "credentials", "history")}
     if manifest.get("config") is not None:
-        value["private_settings"] = private_fingerprint(root, manifest["config"].get("parameters", {}))
+        value["settings_fingerprint_schema"] = 3
+        value["config_hash"] = fingerprint(safe_configuration(manifest["config"]))
+        value["settings_hashes"] = {k: fingerprint(v) for k, v in safe_configuration(manifest["config"]).items()}
+        value["private_settings"] = private_fingerprint(root, private_parameters(manifest["config"]))
         value["files"] = protected_files(root, value.get("files", {}))
+    else:
+        value = sanitized_fingerprints(value)
     with connect(root) as db:
         db.execute("INSERT OR IGNORE INTO releases VALUES (?, ?, ?, ?, ?)",
                    (value["id"], value["project_id"], value["branch"], value["created"], json.dumps(value)))
@@ -60,11 +71,29 @@ def record(root, manifest):
 
 def all_releases(root):
     with connect(root) as db:
-        return [json.loads(row[0]) for row in db.execute("SELECT manifest FROM releases ORDER BY created, id")]
+        values = []
+        for release, raw in db.execute("SELECT id, manifest FROM releases ORDER BY created, id").fetchall():
+            original = json.loads(raw)
+            value = sanitized_fingerprints(original)
+            if value != original:
+                db.execute("UPDATE releases SET manifest=? WHERE id=?", (json.dumps(value), release))
+            values.append(value)
+        return values
 
 
 def fingerprint(config):
     return hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
+
+
+def private_parameters(cfg):
+    return {"production": cfg.get("parameters", {}), "emulation": cfg.get("emulation", {}).get("parameters", {})}
+
+
+def safe_configuration(cfg):
+    value = {k: v for k, v in cfg.items() if k != "parameters"}
+    if "emulation" in value:
+        value["emulation"] = {k: v for k, v in value["emulation"].items() if k != "parameters"}
+    return value
 
 
 def private_fingerprint(root, value):
@@ -85,18 +114,28 @@ def protected_files(root, files):
     result = {}
     for name, meta in files.items():
         value = dict(meta)
-        if name.startswith(("environment/", "credentials/", "data/")):
+        if name == "project.json" or name.startswith(("environment/", "credentials/", "data/")):
             value["sha256"] = private_fingerprint(root, value["sha256"])
         result[name] = value
     return result
 
 
-def public_metadata(manifest):
-    value = {k: v for k, v in manifest.items() if k not in ("config", "credentials", "history", "private_settings")}
+def sanitized_fingerprints(manifest):
+    value = dict(manifest)
     value["settings_hashes"] = {k: v for k, v in value.get("settings_hashes", {}).items() if k != "parameters"}
-    if value.get("settings_fingerprint_schema") != 2:
+    if value.get("settings_fingerprint_schema") != 3:
+        # Schema 2 had two incompatible meanings. Without the original trusted
+        # configuration, neither its aggregate nor its emulation hash is safe.
         value.pop("config_hash", None)
-    value["files"] = {name: {**meta, "sha256": "restricted"} if name.startswith(("environment/", "credentials/", "data/")) else meta
+        value["settings_hashes"].pop("emulation", None)
+        value.pop("private_settings", None)
+    return value
+
+
+def public_metadata(manifest):
+    value = {k: v for k, v in sanitized_fingerprints(manifest).items() if k not in ("config", "credentials", "history", "private_settings")}
+    value["settings_hashes"] = {k: v for k, v in value.get("settings_hashes", {}).items() if k != "parameters"}
+    value["files"] = {name: {**meta, "sha256": "restricted"} if name == "project.json" or name.startswith(("environment/", "credentials/", "data/")) else meta
                       for name, meta in value.get("files", {}).items()}
     value["publisher_identity"] = "self-reported; execution requires independent artifact trust"
     return value

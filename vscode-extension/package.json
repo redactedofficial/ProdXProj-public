@@ -1,0 +1,28 @@
+{
+  "name": "prodxproj",
+  "displayName": "ProdXProj",
+  "description": "Project explorer, shipping preview, script diagnostics and production controls for ProdXProj.",
+  "version": "0.2.1",
+  "publisher": "prodxproj",
+  "engines": {"vscode": "^1.85.0"},
+  "categories": ["Other"],
+  "main": "./src/extension.js",
+  "extensionKind": ["workspace"],
+  "activationEvents": ["workspaceContains:proxproject.json", "onUri"],
+  "capabilities": {"untrustedWorkspaces": {"supported": false, "description": "Project hooks and configured tools require a trusted workspace."}, "virtualWorkspaces": {"supported": false}},
+  "contributes": {
+    "commands": [
+      {"command": "prodxproj.dashboard", "title": "ProdXProj: Dashboard"},
+      {"command": "prodxproj.refresh", "title": "ProdXProj: Refresh Explorer"},
+      {"command": "prodxproj.checkScript", "title": "ProdXProj: Check Current Script"},
+      {"command": "prodxproj.runScript", "title": "ProdXProj: Run Current Script"},
+      {"command": "prodxproj.selectPython", "title": "ProdXProj: Select Python Interpreter"}
+    ],
+    "views": {"explorer": [{"id": "prodxproj.explorer", "name": "ProdXProj"}]},
+    "configuration": {
+      "title": "ProdXProj",
+      "properties": {"prodxproj.pythonPath": {"type": "string", "default": "python", "scope": "machine-overridable", "description": "Python 3.10+ executable with requirements.lock installed. Execution requires workspace trust."}}
+    }
+  },
+  "scripts": {"test": "node --test test/*.test.js"}
+}

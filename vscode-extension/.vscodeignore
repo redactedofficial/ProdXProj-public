@@ -1,0 +1,7 @@
+test/**
+tools/**
+backend/**/__pycache__/**
+**/*.pyc
+**/.git/**
+node_modules/**
+.vscodeignore

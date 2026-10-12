@@ -1,0 +1,17 @@
+:root {color-scheme: light dark; --space: 16px;}
+body {font-family: var(--vscode-font-family); color: var(--vscode-foreground); background: var(--vscode-editor-background); padding: var(--space); max-width: 1600px; margin: auto;}
+header,section {margin-bottom: 24px;}
+h1 {font-size: 28px;} h2 {font-size: 18px;}
+nav,section[aria-label="Shipping options"] {display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:24px;}
+button {background:var(--vscode-button-background); color:var(--vscode-button-foreground); border:0; padding:8px 12px; cursor:pointer; margin:4px;}
+button:hover {background:var(--vscode-button-hoverBackground);} button:disabled {opacity:.5; cursor:wait;}
+input,select {background:var(--vscode-input-background); color:var(--vscode-input-foreground); border:1px solid var(--vscode-input-border,var(--vscode-panel-border)); padding:6px;}
+input[type="number"] {width:64px;} input[type="checkbox"] {margin-right:6px;}
+:focus-visible {outline:2px solid var(--vscode-focusBorder); outline-offset:2px;}
+.pipeline {display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px;}
+details {border:1px solid var(--vscode-panel-border); padding:12px; margin-bottom:8px; min-width:0;}
+summary {cursor:pointer;} pre {white-space:pre-wrap; overflow-wrap:anywhere; font-family:var(--vscode-editor-font-family);}
+.scroll {overflow-x:auto;} table {border-collapse:collapse; width:100%; margin-top:12px;}
+th,td {text-align:left; vertical-align:top; padding:8px; border-bottom:1px solid var(--vscode-panel-border); overflow-wrap:anywhere;}
+th {font-weight:600;} #status {padding:12px; background:var(--vscode-textBlockQuote-background);}
+@media(max-width:600px) {body {padding:8px;} th,td {min-width:130px;}}

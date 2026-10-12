@@ -61,3 +61,7 @@ file; it describes the publication workflow without private workspace content.
 See [about the maintainer](ABOUTME.md). ProdXProj is available under the
 [MIT license](LICENSE); dependencies retain their own licenses as described in
 [third-party notices](THIRD_PARTY_NOTICES.md).
+
+## VS Code integration
+
+Build the 0.2.1 extension with `python scripts/build_vscode_extension.py`, install the VSIX, then open **ProdXProj: Dashboard**. The extension previews shipping destinations, variables and version topology, checks live scripts, and exposes Docker emulation and SSH setup/service controls. `prodx --gui` opens the installed dashboard. See [setup](docs/vscode.md).

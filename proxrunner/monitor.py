@@ -16,6 +16,20 @@ from urllib.parse import parse_qs, urlsplit
 
 from .providers import identifier, manage
 
+AUDIT_ROUTES = {"/openapi.json", "/v1/nodes", "/v1/events", "/v1/releases", "/v1/report", "/v1/manage", "/v1/plans", "/v1/packages/{id}", "/v1/plans/{id}/execute", "/unknown"}
+
+
+def audit_route(path):
+    import re
+    path = path.split("?", 1)[0]
+    if path in AUDIT_ROUTES:
+        return path
+    if re.fullmatch(r"/v1/packages/[a-fA-F0-9-]{36}", path):
+        return "/v1/packages/{id}"
+    if re.fullmatch(r"/v1/plans/[a-fA-F0-9-]{36}/execute", path):
+        return "/v1/plans/{id}/execute"
+    return "/unknown"
+
 OPENAPI = {
     "openapi": "3.1.0", "info": {"title": "ProdXProj monitor", "version": "0.1.2"},
     "components": {"securitySchemes": {"bearerAuth": {"type": "http", "scheme": "bearer"}}},
@@ -123,12 +137,21 @@ class Store:
             return sorted(heartbeat + administration, key=lambda value: value["at"], reverse=True)[:500]
 
     def audit(self, actor, method, route, resource, outcome, error=None):
+        import re
+        actor = actor if re.fullmatch(r"admin|unauthenticated|viewer:\d{1,4}|node:[A-Za-z0-9_.-]{1,128}", actor) else "unknown"
+        method = method if method in ("GET", "POST") else "OTHER"
+        route = route if route in AUDIT_ROUTES else "/unknown"
+        resource = {key: value for key, value in resource.items() if key in ("provider", "action", "node", "vmid", "kind", "container")
+                    and (type(value) is int and 0 <= value < 10**10 or isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", value))}
+        outcome = outcome if type(outcome) is int and 100 <= outcome <= 599 else 500
+        error = error if isinstance(error, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", error) else None
         with self.connect() as db:
             db.execute("INSERT INTO audit (at, actor, method, route, resource, outcome, error) VALUES (?, ?, ?, ?, ?, ?, ?)",
                        (time.time(), actor, method, route, json.dumps(resource), outcome, error))
-            db.execute("DELETE FROM audit WHERE id <= (SELECT MAX(id)-100000 FROM audit)")
+            db.execute("DELETE FROM audit WHERE id <= (SELECT MAX(id)-10000 FROM audit)")
 
     def releases(self, values=None, offset=0):
+        from .history import public_metadata
         if values is not None:
             if not isinstance(values, list) or len(values) > 100:
                 raise ValueError("Publish up to 100 releases per request")
@@ -140,10 +163,17 @@ class Store:
                         if key not in value:
                             raise ValueError("Incomplete release metadata")
                     uuid.UUID(value["id"])
-                    db.execute("INSERT OR REPLACE INTO releases VALUES (?, ?)", (value["id"], json.dumps(value)))
+                    db.execute("INSERT OR REPLACE INTO releases VALUES (?, ?)", (value["id"], json.dumps(public_metadata(value))))
             return {"published": len(values)}
         with self.connect() as db:
-            return [json.loads(value) for (value,) in db.execute("SELECT manifest FROM releases ORDER BY id LIMIT 50 OFFSET ?", (offset,))]
+            result = []
+            for release, raw in db.execute("SELECT id, manifest FROM releases ORDER BY id LIMIT 50 OFFSET ?", (offset,)).fetchall():
+                original = json.loads(raw)
+                value = public_metadata(original)
+                if value != original:
+                    db.execute("UPDATE releases SET manifest=? WHERE id=?", (json.dumps(value), release))
+                result.append(value)
+            return result
 
     def plan(self, data):
         # Plan preparation has no infrastructure side effects. Execution rechecks
@@ -389,8 +419,7 @@ class Handler(BaseHTTPRequestHandler):
         finally:
             # Store only fixed endpoint categories and validated identifiers, never
             # raw query strings, authorization values or exception messages.
-            parts = self.path.split("?", 1)[0].split("/")
-            route = "/".join(parts[:3]) if len(parts) > 2 and parts[1] == "v1" else "/other"
+            route = audit_route(self.path)
             self.server.store.audit(self._actor, method, route, self._resource, self._outcome, error_type)
 
     def do_GET(self):

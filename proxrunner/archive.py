@@ -128,10 +128,10 @@ def pack(root, cfg, output, password=None, include_env=False, include_keys=False
                         "build_commands": cfg.get("build", []) if compile_project else [],
                         "compiled": compile_project, "files": files, "config": cfg,
                         "credentials": credentials, "changes": history.changes(previous, history.protected_files(root, files)),
-                        "config_hash": history.fingerprint({k: v for k, v in cfg.items() if k != "parameters"})}
-            manifest["private_settings"] = history.private_fingerprint(root, cfg.get("parameters", {}))
-            manifest["settings_fingerprint_schema"] = 2
-            manifest["settings_hashes"] = {k: history.fingerprint(v) for k, v in cfg.items() if k != "parameters"}
+                        "config_hash": history.fingerprint(history.safe_configuration(cfg))}
+            manifest["private_settings"] = history.private_fingerprint(root, history.private_parameters(cfg))
+            manifest["settings_fingerprint_schema"] = 3
+            manifest["settings_hashes"] = {k: history.fingerprint(v) for k, v in history.safe_configuration(cfg).items()}
             manifest["settings_changes"] = history.changes(
                 {"files": previous.get("settings_hashes", {})} if previous else None,
                 manifest["settings_hashes"])

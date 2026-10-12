@@ -40,7 +40,7 @@ def save_config(path, cfg):
 def parser():
     p = argparse.ArgumentParser(prog="prodx", description="ProdXProj: production packages, release topology and central monitoring")
     p.add_argument("--project", default=".", help="Project workspace")
-    p.add_argument("--gui", action="store_true", help="Open the native desktop project explorer and shipping emulator")
+    p.add_argument("--gui", action="store_true", help="Open the installed ProdXProj VS Code dashboard")
     sub = p.add_subparsers(dest="command")
     sub.add_parser("test-local", help="Run optional project-specific tests in the local workspace")
     emulate = sub.add_parser("emulate", help="Generate and run isolated local Docker replicas")

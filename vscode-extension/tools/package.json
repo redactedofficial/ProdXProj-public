@@ -1,0 +1,6 @@
+{
+  "name": "prodxproj-extension-build-tools",
+  "private": true,
+  "version": "1.0.0",
+  "devDependencies": {"@vscode/vsce": "4.0.0"}
+}

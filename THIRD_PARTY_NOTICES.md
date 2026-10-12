@@ -12,3 +12,5 @@ their own licenses; installing them does not change those terms.
 Dependency code is not vendored in this repository. Preserve the license files
 and notices included with dependency distributions when redistributing them.
 Applications packaged with ProdXProj retain their existing licenses.
+
+The optional VS Code packaging tool is `@vscode/vsce` (Microsoft, MIT license): <https://github.com/microsoft/vscode-vsce>. Its npm dependency lock records build-tool versions and integrity. These build tools are not bundled into the VSIX; their dependencies retain their own licenses.

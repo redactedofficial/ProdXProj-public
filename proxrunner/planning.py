@@ -15,6 +15,8 @@ def variables(root, cfg, target_name=None, reveal=False):
     result = []
     for name, value in cfg.get("parameters", {}).items():
         result.append({"name": name, "value": value if reveal else "[set]", "source": "project parameters", "state": "set", "behavior": "Exported to runtime hooks/service"})
+    for name, value in cfg.get("emulation", {}).get("parameters", {}).items():
+        result.append({"name": name, "value": value if reveal else "[set]", "source": "local emulation parameters", "state": "set", "behavior": "Exported only to local Docker replicas"})
     for filename in cfg.get("env_files", []):
         path = (Path(root) / filename).resolve()
         if not path.is_relative_to(Path(root).resolve()) or not path.is_file() or path.stat().st_size > 1024**2:

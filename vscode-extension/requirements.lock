@@ -1,0 +1,5 @@
+# Exact dependency versions used for local verification (Python 3.10+).
+# Install with: python -m pip install -r requirements.lock
+cryptography==50.0.2
+cffi==2.1.1
+pycparser==3.11
